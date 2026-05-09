@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 
 export default class Sizes extends THREE.EventDispatcher {
+    on(type, listener) {
+        this.addEventListener(type, listener);
+    }
     constructor() {
         super();
 

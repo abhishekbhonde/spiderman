@@ -8,6 +8,7 @@ import chromaticShader from '../shaders/postfx/chromatic.glsl';
 import motionblurShader from '../shaders/postfx/motionblur.glsl';
 import filmgrainShader from '../shaders/postfx/filmgrain.glsl';
 import vignetteShader from '../shaders/postfx/vignette.glsl';
+import comicShader from '../shaders/postfx/comic.glsl';
 
 export default class PostProcessing {
     constructor() {
@@ -48,7 +49,27 @@ export default class PostProcessing {
         );
         this.composer.addPass(this.bloomPass);
 
-        // 3. Chromatic Aberration
+        // 3. Comic Style (Halftone & Outline)
+        this.comicMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                tDiffuse: { value: null },
+                uResolution: { value: new THREE.Vector2(this.sizes.width, this.sizes.height) },
+                uTime: { value: 0.0 },
+                uSpiderSense: { value: 0.0 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: comicShader
+        });
+        this.comicPass = new ShaderPass(this.comicMaterial);
+        this.composer.addPass(this.comicPass);
+
+        // 4. Chromatic Aberration
         this.chromaticMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 tDiffuse: { value: null },
@@ -129,12 +150,16 @@ export default class PostProcessing {
     resize() {
         this.composer.setSize(this.sizes.width, this.sizes.height);
         this.composer.setPixelRatio(this.sizes.pixelRatio);
+        this.comicPass.uniforms.uResolution.value.set(this.sizes.width, this.sizes.height);
     }
 
     update() {
         const elapsedTime = this.experience.time.elapsed * 0.001;
         const spiderSense = this.experience.spiderSenseValue;
 
+        this.comicPass.uniforms.uTime.value = elapsedTime;
+        this.comicPass.uniforms.uSpiderSense.value = spiderSense;
+        
         this.chromaticPass.uniforms.uSpiderSense.value = spiderSense;
         this.vignettePass.uniforms.uSpiderSense.value = spiderSense;
         this.motionBlurPass.uniforms.uSpiderSense.value = spiderSense;
