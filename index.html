@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider-Man 3D Experience</title>
+    <!-- Preload GLB -->
+    <link rel="preload" href="/spiderman.glb" as="fetch" crossorigin="anonymous">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+        :root {
+            --sp-red: #CC0000;
+            --sp-blue: #003DA5;
+            --sp-black: #000000;
+            --sp-white: #F5F5F5;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--sp-black);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--sp-white);
+        }
+        #webgl-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+
+        /* Loading Screen */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--sp-black);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 1s ease-out;
+        }
+        .web-spinner {
+            width: 100px;
+            height: 100px;
+            position: relative;
+        }
+        .web-spinner svg {
+            width: 100%;
+            height: 100%;
+            stroke: var(--sp-red);
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 400;
+            stroke-dashoffset: 400;
+            animation: drawWeb 2s ease-in-out infinite alternate;
+        }
+        @keyframes drawWeb {
+            from { stroke-dashoffset: 400; }
+            to { stroke-dashoffset: 0; }
+        }
+        #loading-text {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--sp-red);
+            letter-spacing: 2px;
+        }
+
+        /* Start Buttons */
+        #start-container {
+            position: absolute;
+            bottom: 20%;
+            display: none;
+            gap: 20px;
+        }
+        .btn {
+            background-color: transparent;
+            border: 2px solid var(--sp-red);
+            color: var(--sp-white);
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .btn:hover {
+            background-color: var(--sp-red);
+            color: var(--sp-black);
+        }
+
+        /* UI Overlays */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease-in;
+        }
+        .credit-strip {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 12px;
+            color: rgba(245, 245, 245, 0.6);
+            pointer-events: auto;
+        }
+        .credit-strip a {
+            color: var(--sp-red);
+            text-decoration: none;
+        }
+        .credit-strip a:hover {
+            text-decoration: underline;
+        }
+        .tag-strip {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 8px;
+        }
+        .tag-pill {
+            background-color: rgba(0, 61, 165, 0.3);
+            border: 1px solid var(--sp-blue);
+            color: var(--sp-white);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Welcome Modal */
+        #welcome-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            border: 1px solid var(--sp-blue);
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            display: none;
+            pointer-events: auto;
+            flex-direction: column;
+        }
+        #welcome-modal h2 {
+            margin-top: 0;
+            color: var(--sp-red);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .controls-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .controls-list li {
+            margin-bottom: 10px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+        .key {
+            color: var(--sp-red);
+            font-weight: bold;
+        }
+        .modal-actions {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 12px;
+            color: rgba(245,245,245,0.7);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="webgl-canvas"></canvas>
+
+    <div id="loading-overlay">
+        <div class="web-spinner">
+            <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" />
+                <path d="M50 5 L50 95 M5 50 L95 50 M18 18 L82 82 M18 82 L82 18" />
+                <circle cx="50" cy="50" r="30" />
+                <circle cx="50" cy="50" r="15" />
+            </svg>
+        </div>
+        <div id="loading-text">0%</div>
+        <div id="start-container">
+            <button id="btn-with-music" class="btn">♪ Explore with Music</button>
+            <button id="btn-no-music" class="btn">◇ Explore without Music</button>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div class="credit-strip">
+            Model: <a href="https://sketchfab.com/search?q=spider-man&type=models&features=downloadable" target="_blank">Sketchfab</a> | Music: <a href="https://pixabay.com/music/search/superhero/" target="_blank">Pixabay</a> | <a href="https://github.com/SahilK-027/Crystal-Bird" target="_blank">Inspired by Crystal-Bird</a>
+        </div>
+        <div class="tag-strip">
+            <span class="tag-pill">GPGPU</span>
+            <span class="tag-pill">Post-FX</span>
+            <span class="tag-pill">WebGL</span>
+            <span class="tag-pill">Three.js</span>
+        </div>
+
+        <div id="welcome-modal">
+            <h2>Welcome</h2>
+            <ul class="controls-list">
+                <li><span>Orbit</span> <span class="key">Drag</span></li>
+                <li><span>Zoom</span> <span class="key">Scroll</span></li>
+                <li><span>Spider-Sense</span> <span class="key">Hold Space</span></li>
+                <li><span>Debug Panel</span> <span class="key">/?mode=debug</span></li>
+            </ul>
+            <div class="modal-actions">
+                <button id="btn-close-modal" class="btn">Got it</button>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="dont-show-again">
+                    <label for="dont-show-again">Don't show again</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
